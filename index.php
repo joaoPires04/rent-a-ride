@@ -1,4 +1,3 @@
-<!-- Exemplo simples de página HTML -->
 <html>
   <head>
     <title>Rent a Ride</title>
