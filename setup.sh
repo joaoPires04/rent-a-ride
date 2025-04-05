@@ -9,7 +9,7 @@ COSMOS_ACCOUNT="cosmosdbrentaride"
 COSMOS_DB="rent-a-ride"
 STORAGE_ACCOUNT="storagerentaride$RANDOM" 
 CONTAINER_NAME="blob-rent-a-ride"
-GITHUB_REPO="https://github.com/joaoPires04/rent-a-ride"
+GITHUB_REPO="https://github.com/joaoPires04/rent-a-ride.git"  # URL do repositório GitHub
 BRANCH="main"  # O branch que queres usar
 
 # Cria o Resource Group
@@ -22,15 +22,12 @@ az appservice plan create \
   --sku F1 \
   --is-linux
 
-# Cria a Web App com Docker
+# Cria a Web App para Docker
 az webapp create \
   --resource-group $RESOURCE_GROUP \
   --plan $PLAN_NAME \
   --name $APP_NAME \
-  --deployment-container-image-name "php:8.2-apache" \
-  --docker-custom-image-name $GITHUB_REPO:$BRANCH \
-  --multicontainer-config-file docker-compose.yml \
-  --multicontainer-config-type Compose
+  --deployment-container-image-name "php:8.2-apache"  # Esta opção usa a imagem Docker do PHP com Apache.
 
 # Associa o repositório GitHub à Web App para deploy contínuo
 az webapp deployment source config \
