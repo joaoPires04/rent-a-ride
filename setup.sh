@@ -5,12 +5,12 @@ RESOURCE_GROUP="resource-group-rent-a-ride"
 LOCATION="uksouth"
 APP_NAME="rent-a-ride-app"
 PLAN_NAME="plan-rent-a-ride"
-COSMOS_ACCOUNT="cosmosdbrentaride"
+COSMOS_ACCOUNT="cosmosdbrentaride"  
 COSMOS_DB="rent-a-ride"
-STORAGE_ACCOUNT="storagerentaride$RANDOM"
+STORAGE_ACCOUNT="storagerentaride$RANDOM" 
 CONTAINER_NAME="blob-rent-a-ride"
-ACR_NAME="acrentaride"  # Nome para o Azure Container Registry
-DOCKER_IMAGE="rent-a-ride-image"  # Nome da imagem Docker
+GITHUB_REPO="https://github.com/joaoPires04/rent-a-ride"
+BRANCH="main"  # O branch que queres usar
 
 # Cria o Resource Group
 az group create --name $RESOURCE_GROUP --location $LOCATION
@@ -22,30 +22,31 @@ az appservice plan create \
   --sku F1 \
   --is-linux
 
-# Cria a Azure Container Registry (ACR)
-az acr create \
-  --resource-group $RESOURCE_GROUP \
-  --name $ACR_NAME \
-  --sku Basic \
-  --location $LOCATION \
-  --admin-enabled true
-
-# Login na ACR
-az acr login --name $ACR_NAME
-
-# Construa e envie a imagem Docker para o Azure Container Registry
-# Aqui estamos a supor que tens um Dockerfile na pasta local
-docker build -t $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest .
-
-# Enviar a imagem para o ACR
-docker push $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest
-
-# Cria a Web App no Docker (usar a imagem do ACR)
+# Cria a Web App com Docker
 az webapp create \
   --resource-group $RESOURCE_GROUP \
   --plan $PLAN_NAME \
   --name $APP_NAME \
-  --deployment-container-image-name $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest
+  --deployment-container-image-name "php:8.2-apache" \
+  --docker-custom-image-name $GITHUB_REPO:$BRANCH \
+  --multicontainer-config-file docker-compose.yml \
+  --multicontainer-config-type Compose
+
+# Associa o repositório GitHub à Web App para deploy contínuo
+az webapp deployment source config \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --repo-url $GITHUB_REPO \
+  --branch $BRANCH \
+  --manual-integration
+
+# Mostra o Git remoto para deploy
+DEPLOYMENT_URL=$(az webapp deployment source config-local-git \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query url --output tsv)
+
+echo "Git: $DEPLOYMENT_URL"
 
 # Cria a conta CosmosDB (serverless, MongoDB API)
 az cosmosdb create \
@@ -53,7 +54,8 @@ az cosmosdb create \
   --resource-group $RESOURCE_GROUP \
   --locations regionName=$LOCATION failoverPriority=0 \
   --kind MongoDB \
-  --default-consistency-level Eventual
+  --default-consistency-level Eventual \
+  --enable-serverless true
 
 # Cria base de dados MongoDB
 az cosmosdb mongodb database create \
