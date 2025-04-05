@@ -5,10 +5,12 @@ RESOURCE_GROUP="resource-group-rent-a-ride"
 LOCATION="uksouth"
 APP_NAME="rent-a-ride-app"
 PLAN_NAME="plan-rent-a-ride"
-COSMOS_ACCOUNT="cosmosdbrentaride"  # sem hífens ou maiúsculas
+COSMOS_ACCOUNT="cosmosdbrentaride"
 COSMOS_DB="rent-a-ride"
-STORAGE_ACCOUNT="storagerentaride$RANDOM"  # tem de ser único e minúsculo
+STORAGE_ACCOUNT="storagerentaride$RANDOM"
 CONTAINER_NAME="blob-rent-a-ride"
+ACR_NAME="acrentaride"  # Nome para o Azure Container Registry
+DOCKER_IMAGE="rent-a-ride-image"  # Nome da imagem Docker
 
 # Cria o Resource Group
 az group create --name $RESOURCE_GROUP --location $LOCATION
@@ -20,21 +22,30 @@ az appservice plan create \
   --sku F1 \
   --is-linux
 
-# Cria a Web App PHP (runtime direto, sem Docker)
+# Cria a Azure Container Registry (ACR)
+az acr create \
+  --resource-group $RESOURCE_GROUP \
+  --name $ACR_NAME \
+  --sku Basic \
+  --location $LOCATION \
+  --admin-enabled true
+
+# Login na ACR
+az acr login --name $ACR_NAME
+
+# Construa e envie a imagem Docker para o Azure Container Registry
+# Aqui estamos a supor que tens um Dockerfile na pasta local
+docker build -t $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest .
+
+# Enviar a imagem para o ACR
+docker push $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest
+
+# Cria a Web App no Docker (usar a imagem do ACR)
 az webapp create \
   --resource-group $RESOURCE_GROUP \
   --plan $PLAN_NAME \
   --name $APP_NAME \
-  --runtime "PHP|8.2" \
-  --deployment-local-git
-
-# Mostra o Git remoto para deploy
-DEPLOYMENT_URL=$(az webapp deployment source config-local-git \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --query url --output tsv)
-
-echo "Git: $DEPLOYMENT_URL"
+  --deployment-container-image-name $ACR_NAME.azurecr.io/$DOCKER_IMAGE:latest
 
 # Cria a conta CosmosDB (serverless, MongoDB API)
 az cosmosdb create \
@@ -42,7 +53,7 @@ az cosmosdb create \
   --resource-group $RESOURCE_GROUP \
   --locations regionName=$LOCATION failoverPriority=0 \
   --kind MongoDB \
-  --default-consistency-level Eventual \
+  --default-consistency-level Eventual
 
 # Cria base de dados MongoDB
 az cosmosdb mongodb database create \
