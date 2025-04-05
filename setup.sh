@@ -22,12 +22,12 @@ az appservice plan create \
   --sku F1 \
   --is-linux
 
-# Cria a Web App para Docker
+# Cria a Web App PHP (runtime direto, sem Docker)
 az webapp create \
   --resource-group $RESOURCE_GROUP \
   --plan $PLAN_NAME \
   --name $APP_NAME \
-  --deployment-container-image-name "php:8.2-apache"  # Esta opção usa a imagem Docker do PHP com Apache.
+  --runtime "PHP|8.2"
 
 # Associa o repositório GitHub à Web App para deploy contínuo
 az webapp deployment source config \
@@ -51,8 +51,7 @@ az cosmosdb create \
   --resource-group $RESOURCE_GROUP \
   --locations regionName=$LOCATION failoverPriority=0 \
   --kind MongoDB \
-  --default-consistency-level Eventual \
-  --enable-serverless true
+  --default-consistency-level Eventual 
 
 # Cria base de dados MongoDB
 az cosmosdb mongodb database create \
